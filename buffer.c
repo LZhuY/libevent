@@ -161,13 +161,13 @@ evbuffer_chain_new(size_t size)
 	if (size > EVBUFFER_CHAIN_MAX - EVBUFFER_CHAIN_SIZE)
 		return (NULL);
 
-	size += EVBUFFER_CHAIN_SIZE;
+	size += EVBUFFER_CHAIN_SIZE; ///加上evbuffer_chain本身的大小
 
 	/* get the next largest memory that can hold the buffer */
 	if (size < EVBUFFER_CHAIN_MAX / 2) {
 		to_alloc = MIN_BUFFER_SIZE;
 		while (to_alloc < size) {
-			to_alloc <<= 1;
+			to_alloc <<= 1; ///2的倍数
 		}
 	} else {
 		to_alloc = size;
@@ -186,7 +186,7 @@ evbuffer_chain_new(size_t size)
 	 */
 	chain->buffer = EVBUFFER_CHAIN_EXTRA(unsigned char, chain);
 
-	chain->refcnt = 1;
+	chain->refcnt = 1;///引用次数
 
 	return (chain);
 }
@@ -209,12 +209,12 @@ evbuffer_chain_free(struct evbuffer_chain *chain)
 
 	/* safe to release chain, it's either a referencing
 	 * chain or all references to it have been freed */
-	if (chain->flags & EVBUFFER_REFERENCE) {
+	if (chain->flags & EVBUFFER_REFERENCE) { ///如果是一个引用，可以直接释放，应该cleanupfn接口中有对被引用对象引用次数-1
 		struct evbuffer_chain_reference *info =
 		    EVBUFFER_CHAIN_EXTRA(
 			    struct evbuffer_chain_reference,
 			    chain);
-		if (info->cleanupfn)
+		if (info->cleanupfn) ///触发引用的cleanupfunction
 			(*info->cleanupfn)(chain->buffer,
 			    chain->buffer_len,
 			    info->extra);
@@ -252,7 +252,7 @@ evbuffer_chain_free(struct evbuffer_chain *chain)
 }
 
 static void
-evbuffer_free_all_chains(struct evbuffer_chain *chain)
+evbuffer_free_all_chains(struct evbuffer_chain *chain)///释放chain和chain之后的chain
 {
 	struct evbuffer_chain *next;
 	for (; chain; chain = next) {
@@ -287,15 +287,15 @@ static inline int evbuffer_chains_all_empty(struct evbuffer_chain *chain) {
  * as needed; they might have been freed.
  */
 static struct evbuffer_chain **
-evbuffer_free_trailing_empty_chains(struct evbuffer *buf)
+evbuffer_free_trailing_empty_chains(struct evbuffer *buf)///释放掉空节点且不是pinned的节点之后的所有chain
 {
 	struct evbuffer_chain **ch = buf->last_with_datap;
 	/* Find the first victim chain.  It might be *last_with_datap */
-	while ((*ch) && ((*ch)->off != 0 || CHAIN_PINNED(*ch)))
+	while ((*ch) && ((*ch)->off != 0 || CHAIN_PINNED(*ch))) ///empty or (not pinned)
 		ch = &(*ch)->next;
 	if (*ch) {
 		EVUTIL_ASSERT(evbuffer_chains_all_empty(*ch));
-		evbuffer_free_all_chains(*ch);
+		evbuffer_free_all_chains(*ch); 
 		*ch = NULL;
 	}
 	return ch;
@@ -319,7 +319,7 @@ evbuffer_chain_insert(struct evbuffer *buf,
 		chp = evbuffer_free_trailing_empty_chains(buf);
 		*chp = chain;
 		if (chain->off)
-			buf->last_with_datap = chp;
+			buf->last_with_datap = chp; //last_with_data->next 有数据的chain->next
 		buf->last = chain;
 	}
 	buf->total_len += chain->off;
@@ -336,14 +336,14 @@ evbuffer_chain_insert_new(struct evbuffer *buf, size_t datlen)
 }
 
 void
-evbuffer_chain_pin_(struct evbuffer_chain *chain, unsigned flag)
+evbuffer_chain_pin_(struct evbuffer_chain *chain, unsigned flag)///set flat
 {
 	EVUTIL_ASSERT((chain->flags & flag) == 0);
 	chain->flags |= flag;
 }
 
 void
-evbuffer_chain_unpin_(struct evbuffer_chain *chain, unsigned flag)
+evbuffer_chain_unpin_(struct evbuffer_chain *chain, unsigned flag)///unset flat
 {
 	EVUTIL_ASSERT((chain->flags & flag) != 0);
 	chain->flags &= ~flag;
@@ -501,16 +501,16 @@ evbuffer_run_callbacks(struct evbuffer *buffer, int running_deferred)
 		if ((cbent->flags & mask) != masked_val)
 			continue;
 
-		if ((cbent->flags & EVBUFFER_CB_OBSOLETE))
+		if ((cbent->flags & EVBUFFER_CB_OBSOLETE)) ///过时的废弃的
 			cbent->cb.cb_obsolete(buffer,
 			    info.orig_size, new_size, cbent->cbarg);
 		else
-			cbent->cb.cb_func(buffer, &info, cbent->cbarg);
+			cbent->cb.cb_func(buffer, &info, cbent->cbarg); ///触发回调，&info是一些字符数量变化信息，cbent->cbarg是注册是传进来的指针参数。
 	}
 }
 
 void
-evbuffer_invoke_callbacks_(struct evbuffer *buffer)
+evbuffer_invoke_callbacks_(struct evbuffer *buffer) ///evbuffer中的字符有变化的时候，都会调这个接口，触发注册的回调接口。
 {
 	if (LIST_EMPTY(&buffer->callbacks)) {
 		buffer->n_add_for_cb = buffer->n_del_for_cb = 0;
@@ -526,7 +526,7 @@ evbuffer_invoke_callbacks_(struct evbuffer *buffer)
 		}
 	}
 
-	evbuffer_run_callbacks(buffer, 0);
+	evbuffer_run_callbacks(buffer, 0); ///触发特定接口
 }
 
 static void
@@ -631,7 +631,7 @@ evbuffer_get_contiguous_space(const struct evbuffer *buf)
 }
 
 size_t
-evbuffer_add_iovec(struct evbuffer * buf, struct evbuffer_iovec * vec, int n_vec) {
+evbuffer_add_iovec(struct evbuffer * buf, struct evbuffer_iovec * vec, int n_vec) { /// add vec to evbuffer
 	int n;
 	size_t res;
 	size_t to_alloc;
@@ -668,7 +668,7 @@ done:
 
 int
 evbuffer_reserve_space(struct evbuffer *buf, ev_ssize_t size,
-    struct evbuffer_iovec *vec, int n_vecs)
+    struct evbuffer_iovec *vec, int n_vecs) /// expand space, save each chain size and data ptr to vec, write data to vector is write to evbuffer
 {
 	struct evbuffer_chain *chain, **chainp;
 	int n = -1;
@@ -700,7 +700,7 @@ done:
 }
 
 static int
-advance_last_with_data(struct evbuffer *buf)
+advance_last_with_data(struct evbuffer *buf)///update last_with_datap
 {
 	int n = 0;
 	ASSERT_EVBUFFER_LOCKED(buf);
@@ -717,7 +717,7 @@ advance_last_with_data(struct evbuffer *buf)
 
 int
 evbuffer_commit_space(struct evbuffer *buf,
-    struct evbuffer_iovec *vec, int n_vecs)
+    struct evbuffer_iovec *vec, int n_vecs) ///commit to evbuffer
 {
 	struct evbuffer_chain *chain, **firstchainp, **chainp;
 	int result = -1;
@@ -1047,7 +1047,7 @@ done:
 }
 
 int
-evbuffer_prepend_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
+evbuffer_prepend_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf) ///move outbuff chain to inbuff
 {
 	struct evbuffer_chain *pinned, *last;
 	size_t in_total_len, out_total_len;
@@ -1093,7 +1093,7 @@ done:
 }
 
 int
-evbuffer_drain(struct evbuffer *buf, size_t len)
+evbuffer_drain(struct evbuffer *buf, size_t len) ///remove len char from evbuff
 {
 	struct evbuffer_chain *chain, *next;
 	size_t remaining, old_len;
@@ -1162,7 +1162,7 @@ done:
 
 /* Reads data from an event buffer and drains the bytes read */
 int
-evbuffer_remove(struct evbuffer *buf, void *data_out, size_t datlen)
+evbuffer_remove(struct evbuffer *buf, void *data_out, size_t datlen) ///copy and remove
 {
 	ev_ssize_t n;
 	EVBUFFER_LOCK(buf);
@@ -1176,14 +1176,14 @@ evbuffer_remove(struct evbuffer *buf, void *data_out, size_t datlen)
 }
 
 ev_ssize_t
-evbuffer_copyout(struct evbuffer *buf, void *data_out, size_t datlen)
+evbuffer_copyout(struct evbuffer *buf, void *data_out, size_t datlen) ///copy only
 {
 	return evbuffer_copyout_from(buf, NULL, data_out, datlen);
 }
 
 ev_ssize_t
 evbuffer_copyout_from(struct evbuffer *buf, const struct evbuffer_ptr *pos,
-    void *data_out, size_t datlen)
+    void *data_out, size_t datlen) ///evbuffer_copyout_from()的行为与evbuffer_copyout()有些类似， 不同的是evbuffer_copyout_from() 从制定的位置pos 开始复制
 {
 	/*XXX fails badly on sendfile case. */
 	struct evbuffer_chain *chain;
@@ -1720,7 +1720,7 @@ done:
 /* Adds data to an event buffer */
 
 int
-evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
+evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen) ///add data to evbuffer
 {
 	struct evbuffer_chain *chain, *tmp;
 	const unsigned char *data = data_in;
@@ -1817,7 +1817,7 @@ done:
 }
 
 int
-evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
+evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen) ///add data to evbuffer head
 {
 	struct evbuffer_chain *chain, *tmp;
 	int result = -1;
@@ -2268,7 +2268,7 @@ get_n_bytes_readable_on_socket(evutil_socket_t fd)
 /* TODO(niels): should this function return ev_ssize_t and take ev_ssize_t
  * as howmuch? */
 int
-evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
+evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch) ///read from fd
 {
 	struct evbuffer_chain **chainp;
 	int n;
@@ -2401,7 +2401,7 @@ done:
 #ifdef USE_IOVEC_IMPL
 static inline int
 evbuffer_write_iovec(struct evbuffer *buffer, evutil_socket_t fd,
-    ev_ssize_t howmuch)
+    ev_ssize_t howmuch) /// write to fd
 {
 	IOV_TYPE iov[NUM_WRITE_IOVEC];
 	struct evbuffer_chain *chain = buffer->first;
@@ -2771,7 +2771,7 @@ done:
 int
 evbuffer_peek(struct evbuffer *buffer, ev_ssize_t len,
     struct evbuffer_ptr *start_at,
-    struct evbuffer_iovec *vec, int n_vec)
+    struct evbuffer_iovec *vec, int n_vec) ///copy data ptr only 
 {
 	struct evbuffer_chain *chain;
 	int idx = 0;
@@ -2907,13 +2907,13 @@ evbuffer_add_printf(struct evbuffer *buf, const char *fmt, ...)
 int
 evbuffer_add_reference(struct evbuffer *outbuf,
     const void *data, size_t datlen,
-    evbuffer_ref_cleanup_cb cleanupfn, void *extra)
+    evbuffer_ref_cleanup_cb cleanupfn, void *extra) ///向evbuffer中添加一块内存的 evbuff_chain_reference
 {
 	struct evbuffer_chain *chain;
 	struct evbuffer_chain_reference *info;
 	int result = -1;
 
-	chain = evbuffer_chain_new(sizeof(struct evbuffer_chain_reference));
+	chain = evbuffer_chain_new(sizeof(struct evbuffer_chain_reference)); ///额外申请reference结构大小，位置在chain+1偏移处，chain->buffer指向data指向的内存。
 	if (!chain)
 		return (-1);
 	chain->flags |= EVBUFFER_REFERENCE | EVBUFFER_IMMUTABLE;
@@ -2925,7 +2925,7 @@ evbuffer_add_reference(struct evbuffer *outbuf,
 	info->cleanupfn = cleanupfn;
 	info->extra = extra;
 
-	EVBUFFER_LOCK(outbuf);
+	EVBUFFER_LOCK(outbuf); ///线程安全，先加锁
 	if (outbuf->freeze_end) {
 		/* don't call chain_free; we do not want to actually invoke
 		 * the cleanup function */
@@ -3294,24 +3294,24 @@ evbuffer_add_file(struct evbuffer *buf, int fd, ev_off_t offset, ev_off_t length
 }
 
 void
-evbuffer_setcb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg)
+evbuffer_setcb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg) ///注册回调接口
 {
 	EVBUFFER_LOCK(buffer);
 
 	if (!LIST_EMPTY(&buffer->callbacks))
-		evbuffer_remove_all_callbacks(buffer);
+		evbuffer_remove_all_callbacks(buffer); ///情况之前回调
 
 	if (cb) {
 		struct evbuffer_cb_entry *ent =
-		    evbuffer_add_cb(buffer, NULL, cbarg);
-		ent->cb.cb_obsolete = cb;
+		    evbuffer_add_cb(buffer, NULL, cbarg); ///返回回调实体
+		ent->cb.cb_obsolete = cb; ///设置回调函数指针
 		ent->flags |= EVBUFFER_CB_OBSOLETE;
 	}
 	EVBUFFER_UNLOCK(buffer);
 }
 
 struct evbuffer_cb_entry *
-evbuffer_add_cb(struct evbuffer *buffer, evbuffer_cb_func cb, void *cbarg)
+evbuffer_add_cb(struct evbuffer *buffer, evbuffer_cb_func cb, void *cbarg) ///设置回调接口
 {
 	struct evbuffer_cb_entry *e;
 	if (! (e = mm_calloc(1, sizeof(struct evbuffer_cb_entry))))
@@ -3327,7 +3327,7 @@ evbuffer_add_cb(struct evbuffer *buffer, evbuffer_cb_func cb, void *cbarg)
 
 int
 evbuffer_remove_cb_entry(struct evbuffer *buffer,
-			 struct evbuffer_cb_entry *ent)
+			 struct evbuffer_cb_entry *ent) ///删除已经注册的回调
 {
 	EVBUFFER_LOCK(buffer);
 	LIST_REMOVE(ent, next);
@@ -3337,7 +3337,7 @@ evbuffer_remove_cb_entry(struct evbuffer *buffer,
 }
 
 int
-evbuffer_remove_cb(struct evbuffer *buffer, evbuffer_cb_func cb, void *cbarg)
+evbuffer_remove_cb(struct evbuffer *buffer, evbuffer_cb_func cb, void *cbarg)///删除已经注册的回调
 {
 	struct evbuffer_cb_entry *cbent;
 	int result = -1;
@@ -3378,7 +3378,7 @@ evbuffer_cb_clear_flags(struct evbuffer *buffer,
 }
 
 int
-evbuffer_freeze(struct evbuffer *buffer, int start)
+evbuffer_freeze(struct evbuffer *buffer, int start) ///锁住evbuffer末端
 {
 	EVBUFFER_LOCK(buffer);
 	if (start)
@@ -3390,7 +3390,7 @@ evbuffer_freeze(struct evbuffer *buffer, int start)
 }
 
 int
-evbuffer_unfreeze(struct evbuffer *buffer, int start)
+evbuffer_unfreeze(struct evbuffer *buffer, int start)///解开evbuffer末端
 {
 	EVBUFFER_LOCK(buffer);
 	if (start)

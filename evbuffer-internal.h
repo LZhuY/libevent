@@ -108,7 +108,7 @@ struct evbuffer {
 	 * tried to invoke callbacks. */
 	size_t n_del_for_cb;
 
-#ifndef EVENT__DISABLE_THREAD_SUPPORT
+#ifndef EVENT__DISABLE_THREAD_SUPPORT ///
 	/** A lock used to mediate access to this buffer. */
 	void *lock;
 #endif
@@ -148,7 +148,7 @@ struct evbuffer {
 	struct event_callback deferred;
 
 	/** A doubly-linked-list of callback functions */
-	LIST_HEAD(evbuffer_cb_queue, evbuffer_cb_entry) callbacks;
+	LIST_HEAD(evbuffer_cb_queue, evbuffer_cb_entry) callbacks; ///有时候需要知道evbuffer中的字符变化，可以设置回调在变化的时候触发。
 
 	/** The parent bufferevent object this evbuffer belongs to.
 	 * NULL if the evbuffer stands alone. */
@@ -276,7 +276,7 @@ struct evbuffer_multicast_parent {
 
 #define EVBUFFER_CHAIN_SIZE sizeof(struct evbuffer_chain)
 /** Return a pointer to extra data allocated along with an evbuffer. */
-#define EVBUFFER_CHAIN_EXTRA(t, c) (t *)((struct evbuffer_chain *)(c) + 1)
+#define EVBUFFER_CHAIN_EXTRA(t, c) (t *)((struct evbuffer_chain *)(c) + 1)///所谓额外部分就是buff指针部分，(evbuffer_chain*)+1后指向buff内中的内容
 
 /** Assert that we are holding the lock on an evbuffer */
 #define ASSERT_EVBUFFER_LOCKED(buffer)			\
