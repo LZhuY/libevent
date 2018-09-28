@@ -148,7 +148,7 @@ HT_HEAD(event_io_map, event_map_entry);
    defined, this structure is also used as event_io_map, which maps fds to a
    list of events.
 */
-struct event_signal_map {
+struct event_signal_map { /// io or signal map 列表
 	/* An array of evmap_io * or of evmap_signal *; empty entries are
 	 * set to NULL. */
 	void **entries;

@@ -2605,7 +2605,7 @@ event_add_nolock_(struct event *ev, const struct timeval *tv,
 	 * prepare for timeout insertion further below, if we get a
 	 * failure on any step, we should not change any state.
 	 */
-	if (tv != NULL && !(ev->ev_flags & EVLIST_TIMEOUT)) {
+	if (tv != NULL && !(ev->ev_flags & EVLIST_TIMEOUT)) { ///如果事件有超时，预先申请heap空间。
 		if (min_heap_reserve_(&base->timeheap,
 			1 + min_heap_size_(&base->timeheap)) == -1)
 			return (-1);  /* ENOMEM == errno */
@@ -2615,23 +2615,23 @@ event_add_nolock_(struct event *ev, const struct timeval *tv,
 	 * callback, and we are not the main thread, then we want to wait
 	 * until the callback is done before we mess with the event, or else
 	 * we can race on ev_ncalls and ev_pncalls below. */
-#ifndef EVENT__DISABLE_THREAD_SUPPORT
+#ifndef EVENT__DISABLE_THREAD_SUPPORT ///多线程的环境
 	if (base->current_event == event_to_event_callback(ev) &&
 	    (ev->ev_events & EV_SIGNAL)
-	    && !EVBASE_IN_THREAD(base)) {
+	    && !EVBASE_IN_THREAD(base)) { ///正在执行信号事件的回调，且不是base持有的线程，则等待回调结束不然可能会产生竞争。
 		++base->current_event_waiters;
-		EVTHREAD_COND_WAIT(base->current_event_cond, base->th_base_lock);
+		EVTHREAD_COND_WAIT(base->current_event_cond, base->th_base_lock); ///等待唤醒
 	}
 #endif
 
 	if ((ev->ev_events & (EV_READ|EV_WRITE|EV_CLOSED|EV_SIGNAL)) &&
 	    !(ev->ev_flags & (EVLIST_INSERTED|EVLIST_ACTIVE|EVLIST_ACTIVE_LATER))) {
 		if (ev->ev_events & (EV_READ|EV_WRITE|EV_CLOSED))
-			res = evmap_io_add_(base, ev->ev_fd, ev);
+			res = evmap_io_add_(base, ev->ev_fd, ev); ///加IO事件
 		else if (ev->ev_events & EV_SIGNAL)
-			res = evmap_signal_add_(base, (int)ev->ev_fd, ev);
-		if (res != -1)
-			event_queue_insert_inserted(base, ev);
+			res = evmap_signal_add_(base, (int)ev->ev_fd, ev); ///加信号事件
+		if (res != -1) ///如果上面的操作事件添加成功，则把事件加到base列表中。上面的添加只是加到epoll or 系统的信号列表中而已。
+			event_queue_insert_inserted(base, ev); ///这里是base自己持有的ev
 		if (res == 1) {
 			/* evmap says we need to notify the main thread. */
 			notify = 1;

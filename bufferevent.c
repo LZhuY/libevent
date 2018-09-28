@@ -64,7 +64,7 @@ static void bufferevent_cancel_all_(struct bufferevent *bev);
 static void bufferevent_finalize_cb_(struct event_callback *evcb, void *arg_);
 
 void
-bufferevent_suspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags what)
+bufferevent_suspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags what) ///先暂停读事件触发，inbuffer中的内容已经到高水位，先暂停从fd中读。
 {
 	struct bufferevent_private *bufev_private =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
@@ -76,7 +76,7 @@ bufferevent_suspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags w
 }
 
 void
-bufferevent_unsuspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags what)
+bufferevent_unsuspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags what)///取消暂停，开启读事件
 {
 	struct bufferevent_private *bufev_private =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
@@ -88,7 +88,7 @@ bufferevent_unsuspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags
 }
 
 void
-bufferevent_suspend_write_(struct bufferevent *bufev, bufferevent_suspend_flags what)
+bufferevent_suspend_write_(struct bufferevent *bufev, bufferevent_suspend_flags what) ///暂停写
 {
 	struct bufferevent_private *bufev_private =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
@@ -100,7 +100,7 @@ bufferevent_suspend_write_(struct bufferevent *bufev, bufferevent_suspend_flags 
 }
 
 void
-bufferevent_unsuspend_write_(struct bufferevent *bufev, bufferevent_suspend_flags what)
+bufferevent_unsuspend_write_(struct bufferevent *bufev, bufferevent_suspend_flags what) ///开启写
 {
 	struct bufferevent_private *bufev_private =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
@@ -117,7 +117,7 @@ bufferevent_unsuspend_write_(struct bufferevent *bufev, bufferevent_suspend_flag
 static void
 bufferevent_inbuf_wm_cb(struct evbuffer *buf,
     const struct evbuffer_cb_info *cbinfo,
-    void *arg)
+    void *arg) ///读高低水位回调，被注册到evbuffer的回调函数中。
 {
 	struct bufferevent *bufev = arg;
 	size_t size;
@@ -218,14 +218,14 @@ bufferevent_run_deferred_callbacks_unlocked(struct event_callback *cb, void *arg
 
 
 void
-bufferevent_run_readcb_(struct bufferevent *bufev, int options)
+bufferevent_run_readcb_(struct bufferevent *bufev, int options) ///触发读回调
 {
 	/* Requires that we hold the lock and a reference */
 	struct bufferevent_private *p =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	if (bufev->readcb == NULL)
 		return;
-	if ((p->options|options) & BEV_OPT_DEFER_CALLBACKS) {
+	if ((p->options|options) & BEV_OPT_DEFER_CALLBACKS) { ///如果设置了延时，设置好readcb_pending = 1之后返回，不然直接触发readcb接口
 		p->readcb_pending = 1;
 		SCHEDULE_DEFERRED(p);
 	} else {
@@ -234,14 +234,14 @@ bufferevent_run_readcb_(struct bufferevent *bufev, int options)
 }
 
 void
-bufferevent_run_writecb_(struct bufferevent *bufev, int options)
+bufferevent_run_writecb_(struct bufferevent *bufev, int options)///触发写回调
 {
 	/* Requires that we hold the lock and a reference */
 	struct bufferevent_private *p =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	if (bufev->writecb == NULL)
 		return;
-	if ((p->options|options) & BEV_OPT_DEFER_CALLBACKS) {
+	if ((p->options|options) & BEV_OPT_DEFER_CALLBACKS) { ///如果设置了延时，设置好writecb_pending = 1之后返回，不然直接触发writecb接口
 		p->writecb_pending = 1;
 		SCHEDULE_DEFERRED(p);
 	} else {
@@ -255,7 +255,7 @@ bufferevent_run_writecb_(struct bufferevent *bufev, int options)
 	)
 
 void
-bufferevent_trigger(struct bufferevent *bufev, short iotype, int options)
+bufferevent_trigger(struct bufferevent *bufev, short iotype, int options) ///触发读写事件，如果高于读低水位，触发读。如果低于写第水位触发写
 {
 	bufferevent_incref_and_lock_(bufev);
 	bufferevent_trigger_nolock_(bufev, iotype, options&BEV_TRIG_ALL_OPTS);
@@ -263,7 +263,7 @@ bufferevent_trigger(struct bufferevent *bufev, short iotype, int options)
 }
 
 void
-bufferevent_run_eventcb_(struct bufferevent *bufev, short what, int options)
+bufferevent_run_eventcb_(struct bufferevent *bufev, short what, int options) ///触发事件回调
 {
 	/* Requires that we hold the lock and a reference */
 	struct bufferevent_private *p =
@@ -592,7 +592,7 @@ bufferevent_setwatermark(struct bufferevent *bufev, short events,
 				bufev_private->read_watermarks_cb =
 				    evbuffer_add_cb(bufev->input,
 						    bufferevent_inbuf_wm_cb,
-						    bufev);
+						    bufev); /// evbuffer有字符变化回调
 			}
 			evbuffer_cb_set_flags(bufev->input,
 				      bufev_private->read_watermarks_cb,
@@ -917,7 +917,7 @@ bufferevent_get_underlying(struct bufferevent *bev)
 }
 
 static void
-bufferevent_generic_read_timeout_cb(evutil_socket_t fd, short event, void *ctx)
+bufferevent_generic_read_timeout_cb(evutil_socket_t fd, short event, void *ctx) ///timeout
 {
 	struct bufferevent *bev = ctx;
 	bufferevent_incref_and_lock_(bev);
@@ -936,10 +936,10 @@ bufferevent_generic_write_timeout_cb(evutil_socket_t fd, short event, void *ctx)
 }
 
 void
-bufferevent_init_generic_timeout_cbs_(struct bufferevent *bev)
+bufferevent_init_generic_timeout_cbs_(struct bufferevent *bev) ///触发超时事件
 {
 	event_assign(&bev->ev_read, bev->ev_base, -1, EV_FINALIZE,
-	    bufferevent_generic_read_timeout_cb, bev);
+	    bufferevent_generic_read_timeout_cb, bev); ///给event对象赋值
 	event_assign(&bev->ev_write, bev->ev_base, -1, EV_FINALIZE,
 	    bufferevent_generic_write_timeout_cb, bev);
 }

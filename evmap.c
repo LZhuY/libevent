@@ -201,7 +201,7 @@ evmap_io_clear_(struct event_io_map* ctx)
 	to store a value in 'slot'.
  */
 static int
-evmap_make_space(struct event_signal_map *map, int slot, int msize)
+evmap_make_space(struct event_signal_map *map, int slot, int msize) ///数组列表，fd or signal 通过hash映射到列表中
 {
 	if (map->nentries <= slot) {
 		int nentries = map->nentries ? map->nentries : 32;
@@ -215,7 +215,7 @@ evmap_make_space(struct event_signal_map *map, int slot, int msize)
 			return (-1);
 
 		memset(&tmp[map->nentries], 0,
-		    (nentries - map->nentries) * msize);
+		    (nentries - map->nentries) * msize); ///新申请的空间置0
 
 		map->nentries = nentries;
 		map->entries = tmp;
@@ -279,7 +279,7 @@ evmap_io_add_(struct event_base *base, evutil_socket_t fd, struct event *ev)
 
 #ifndef EVMAP_USE_HT
 	if (fd >= io->nentries) {
-		if (evmap_make_space(io, fd, sizeof(struct evmap_io *)) == -1)
+		if (evmap_make_space(io, fd, sizeof(struct evmap_io *)) == -1) ///扩展列表空间
 			return (-1);
 	}
 #endif

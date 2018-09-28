@@ -138,7 +138,7 @@ int min_heap_reserve_(min_heap_t* s, unsigned n)
 		unsigned a = s->a ? s->a * 2 : 8;
 		if (a < n)
 			a = n;
-		if (!(p = (struct event**)mm_realloc(s->p, a * sizeof *p)))
+		if (!(p = (struct event**)mm_realloc(s->p, a * sizeof *p))) ///重新申请空间，可能会触发内存复制
 			return -1;
 		s->p = p;
 		s->a = a;

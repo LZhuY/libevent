@@ -132,7 +132,7 @@ struct sockaddr;
    @param bev the bufferevent that triggered the callback
    @param ctx the user-specified context for this bufferevent
  */
-typedef void (*bufferevent_data_cb)(struct bufferevent *bev, void *ctx);
+typedef void (*bufferevent_data_cb)(struct bufferevent *bev, void *ctx); ///读写回调函数指针
 
 /**
    An event/error callback for a bufferevent.
@@ -151,7 +151,7 @@ typedef void (*bufferevent_data_cb)(struct bufferevent *bev, void *ctx);
 
    @param ctx the user-specified context for this bufferevent
 */
-typedef void (*bufferevent_event_cb)(struct bufferevent *bev, short what, void *ctx);
+typedef void (*bufferevent_event_cb)(struct bufferevent *bev, short what, void *ctx); ///事件&错误函数指针
 
 /** Options that can be specified when creating a bufferevent */
 enum bufferevent_options {
@@ -179,7 +179,7 @@ enum bufferevent_options {
   @param base the event base to associate with the new bufferevent.
   @param fd the file descriptor from which data is read and written to.
 	    This file descriptor is not allowed to be a pipe(2).
-	    It is safe to set the fd to -1, so long as you later
+	    It is safe to set the fd to -1, so long as you later ///一开始fd可以是-1，然后后面再设置fd或者调connect接口。
 	    set it with bufferevent_setfd or bufferevent_socket_connect().
   @param options Zero or more BEV_OPT_* flags
   @return a pointer to a newly allocated bufferevent struct, or NULL if an
@@ -209,7 +209,7 @@ struct bufferevent *bufferevent_socket_new(struct event_base *base, evutil_socke
    @return 0 on success, -1 on failure.
  */
 EVENT2_EXPORT_SYMBOL
-int bufferevent_socket_connect(struct bufferevent *, const struct sockaddr *, int);
+int bufferevent_socket_connect(struct bufferevent *, const struct sockaddr *, int);///连接到sockaddr，读写事件触发到bufferevent设置的读写，相当于给buffer设置fd
 
 struct evdns_base;
 /**
@@ -240,7 +240,7 @@ struct evdns_base;
  */
 EVENT2_EXPORT_SYMBOL
 int bufferevent_socket_connect_hostname(struct bufferevent *,
-    struct evdns_base *, int, const char *, int);
+    struct evdns_base *, int, const char *, int); ///跟上面接口一样，只是这个接口直接提供了hostname
 
 /**
    Return the error code for the last failed DNS lookup attempt made by
@@ -265,7 +265,7 @@ int bufferevent_socket_get_dns_error(struct bufferevent *bev);
   @see bufferevent_new()
  */
 EVENT2_EXPORT_SYMBOL
-int bufferevent_base_set(struct event_base *base, struct bufferevent *bufev);
+int bufferevent_base_set(struct event_base *base, struct bufferevent *bufev); ///给buffer设置base
 
 /**
    Return the event_base used by a bufferevent
@@ -283,7 +283,7 @@ struct event_base *bufferevent_get_base(struct bufferevent *bev);
   @return 0 if successful, or -1 if an error occurred
   */
 EVENT2_EXPORT_SYMBOL
-int bufferevent_priority_set(struct bufferevent *bufev, int pri);
+int bufferevent_priority_set(struct bufferevent *bufev, int pri);///优先级，应该是base中处理的优先级
 
 /**
    Return the priority of a bufferevent.
@@ -322,7 +322,7 @@ void bufferevent_free(struct bufferevent *bufev);
 EVENT2_EXPORT_SYMBOL
 void bufferevent_setcb(struct bufferevent *bufev,
     bufferevent_data_cb readcb, bufferevent_data_cb writecb,
-    bufferevent_event_cb eventcb, void *cbarg);
+    bufferevent_event_cb eventcb, void *cbarg); ///注册bufferevent事件回调
 
 /**
  Retrieves the callbacks for a bufferevent.
@@ -353,7 +353,7 @@ void bufferevent_getcb(struct bufferevent *bufev,
   @param fd the file descriptor to operate on
 */
 EVENT2_EXPORT_SYMBOL
-int bufferevent_setfd(struct bufferevent *bufev, evutil_socket_t fd);
+int bufferevent_setfd(struct bufferevent *bufev, evutil_socket_t fd); ///替换掉buffer的fd
 
 /**
    Returns the file descriptor associated with a bufferevent, or -1 if
@@ -374,7 +374,7 @@ struct bufferevent *bufferevent_get_underlying(struct bufferevent *bufev);
 
   The bufferevent_write() function can be used to write data to the file
   descriptor.  The data is appended to the output buffer and written to the
-  descriptor automatically as it becomes available for writing.
+  descriptor automatically as it becomes available for writing. ///先缓存在output buffer中，然后再自动写入fd
 
   @param bufev the bufferevent to be written to
   @param data a pointer to the data to be written
@@ -397,7 +397,7 @@ int bufferevent_write(struct bufferevent *bufev,
   @see bufferevent_write()
  */
 EVENT2_EXPORT_SYMBOL
-int bufferevent_write_buffer(struct bufferevent *bufev, struct evbuffer *buf);
+int bufferevent_write_buffer(struct bufferevent *bufev, struct evbuffer *buf); ///把evbuffer中的内容写到bufferevent中
 
 
 /**
@@ -411,10 +411,10 @@ int bufferevent_write_buffer(struct bufferevent *bufev, struct evbuffer *buf);
   @return the amount of data read, in bytes.
  */
 EVENT2_EXPORT_SYMBOL
-size_t bufferevent_read(struct bufferevent *bufev, void *data, size_t size);
+size_t bufferevent_read(struct bufferevent *bufev, void *data, size_t size);///从bufferevent中读数据，应该是有读事件触发时才调
 
 /**
-  Read data from a bufferevent buffer into an evbuffer.	 This avoids
+  Read data from a bufferevent buffer into an evbuffer.	 This avoids 
   memory copies.
 
   @param bufev the bufferevent to be read from
@@ -422,7 +422,7 @@ size_t bufferevent_read(struct bufferevent *bufev, void *data, size_t size);
   @return 0 if successful, or -1 if an error occurred.
  */
 EVENT2_EXPORT_SYMBOL
-int bufferevent_read_buffer(struct bufferevent *bufev, struct evbuffer *buf);
+int bufferevent_read_buffer(struct bufferevent *bufev, struct evbuffer *buf); ///从bufferevent中读数据到evbuffer中，应该是浅复制，避免深度复制
 
 /**
    Returns the input buffer.
@@ -460,7 +460,7 @@ struct evbuffer *bufferevent_get_output(struct bufferevent *bufev);
   @see bufferevent_disable()
  */
 EVENT2_EXPORT_SYMBOL
-int bufferevent_enable(struct bufferevent *bufev, short event);
+int bufferevent_enable(struct bufferevent *bufev, short event); ///读写设置
 
 /**
   Disable a bufferevent.
@@ -493,13 +493,13 @@ short bufferevent_get_enabled(struct bufferevent *bufev);
   bufferevent's read or write operation has been suspended because
   there's no data to write, or not enough banwidth, or so on, the
   timeout isn't active.  The timeout only becomes active when we we're
-  willing to actually read or write.)
+  willing to actually read or write.) ///读&写事件被屏蔽后是不会触发超时的
 
   Calling bufferevent_enable or setting a timeout for a bufferevent
   whose timeout is already pending resets its timeout.
 
   If the timeout elapses, the corresponding operation (EV_READ or
-  EV_WRITE) becomes disabled until you re-enable it again.  The
+  EV_WRITE) becomes disabled until you re-enable it again.  The ///timeout之后需要重新注册read/write事件
   bufferevent's event callback is called with the
   BEV_EVENT_TIMEOUT|BEV_EVENT_READING or
   BEV_EVENT_TIMEOUT|BEV_EVENT_WRITING.
@@ -532,7 +532,7 @@ int bufferevent_set_timeouts(struct bufferevent *bufev,
 
 EVENT2_EXPORT_SYMBOL
 void bufferevent_setwatermark(struct bufferevent *bufev, short events,
-    size_t lowmark, size_t highmark);
+    size_t lowmark, size_t highmark); ///读写高低水位设置
 
 /**
   Retrieves the watermarks for read or write events.
@@ -553,7 +553,7 @@ int bufferevent_getwatermark(struct bufferevent *bufev, short events,
    enabled with BEV_OPT_THREADSAFE.
  */
 EVENT2_EXPORT_SYMBOL
-void bufferevent_lock(struct bufferevent *bufev);
+void bufferevent_lock(struct bufferevent *bufev); ///请求上锁
 
 /**
    Release the lock on a bufferevent.  Has no effect if locking was not
@@ -679,7 +679,7 @@ enum bufferevent_filter_result {
 	BEV_ERROR = 2
 };
 
-/** A callback function to implement a filter for a bufferevent.
+/** A callback function to implement a filter for a bufferevent. ///这部分是过滤器部分，可以在这里设置进出两个buff之间的转换接口。
 
     @param src An evbuffer to drain data from.
     @param dst An evbuffer to add data to.
