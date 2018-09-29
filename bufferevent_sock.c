@@ -232,8 +232,8 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 }
 
 static void
-bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
-{
+bufferevent_writecb(evutil_socket_t fd, short event, void *arg) ///这里是写回调，bufferevent的fd可以写之后，回调到这里把output缓存中的内容写到fd。写完后需要马上删除写事件，不然会一直触发。
+{																///等下次调用bufferevent_write接口的时候再注册ev_write接口，然后触发到这个接口后循环。
 	struct bufferevent *bufev = arg;
 	struct bufferevent_private *bufev_p =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
@@ -251,7 +251,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 		what |= BEV_EVENT_TIMEOUT;
 		goto error;
 	}
-	if (bufev_p->connecting) {
+	if (bufev_p->connecting) { ///判断fd是否已经连接，连接之后才能向fd写东西。
 		int c = evutil_socket_finished_connecting_(fd);
 		/* we need to fake the error if the connection was refused
 		 * immediately - usually connection to localhost on BSD */
@@ -260,16 +260,16 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 			c = -1;
 		}
 
-		if (c == 0)
+		if (c == 0) ///没连接上
 			goto done;
 
 		bufev_p->connecting = 0;
-		if (c < 0) {
+		if (c < 0) { ///发生连接错误
 			event_del(&bufev->ev_write);
 			event_del(&bufev->ev_read);
-			bufferevent_run_eventcb_(bufev, BEV_EVENT_ERROR, 0);
+			bufferevent_run_eventcb_(bufev, BEV_EVENT_ERROR, 0); ///触发用户设置的错误回调接口
 			goto done;
-		} else {
+		} else { ///连接成功了。
 			connected = 1;
 			bufferevent_socket_set_conn_address_fd_(bufev, fd);
 #ifdef _WIN32
@@ -282,10 +282,10 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 			}
 #endif
 			bufferevent_run_eventcb_(bufev,
-					BEV_EVENT_CONNECTED, 0);
+					BEV_EVENT_CONNECTED, 0); ///触发用户注册的事件回调，参数数连接成功。
 			if (!(bufev->enabled & EV_WRITE) ||
 			    bufev_p->write_suspended) {
-				event_del(&bufev->ev_write);
+				event_del(&bufev->ev_write); ///删除监听接口，不需要监听可写了，等下次向bufferevent output写的时候再监听。
 				goto done;
 			}
 		}
@@ -296,7 +296,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	if (bufev_p->write_suspended)
 		goto done;
 
-	if (evbuffer_get_length(bufev->output)) {
+	if (evbuffer_get_length(bufev->output)) { ///经过上面那段连接判断后，确定连接成功接下来可以往fd写数据了。
 		evbuffer_unfreeze(bufev->output, 1);
 		res = evbuffer_write_atmost(bufev->output, fd, atmost);
 		evbuffer_freeze(bufev->output, 1);
@@ -319,7 +319,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	}
 
 	if (evbuffer_get_length(bufev->output) == 0) {
-		event_del(&bufev->ev_write);
+		event_del(&bufev->ev_write); ///写完后删除可写监听事件，还没写完暂时不删除下次触发再接着写。
 	}
 
 	/*
@@ -348,7 +348,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 
 struct bufferevent *
 bufferevent_socket_new(struct event_base *base, evutil_socket_t fd,
-    int options)
+    int options) ///bufferevent的创建接口
 {
 	struct bufferevent_private *bufev_p;
 	struct bufferevent *bufev;
@@ -362,21 +362,25 @@ bufferevent_socket_new(struct event_base *base, evutil_socket_t fd,
 		return NULL;
 
 	if (bufferevent_init_common_(bufev_p, base, &bufferevent_ops_socket,
-				    options) < 0) {
+				    options) < 0) { ///bufferevent公共部分初始化
 		mm_free(bufev_p);
 		return NULL;
 	}
 	bufev = &bufev_p->bev;
 	evbuffer_set_flags(bufev->output, EVBUFFER_FLAG_DRAINS_TO_FD);
-
+	///给bufferevent的读/写事件注册回调，可以读或者可以写都触发到这里。这个bufferevent_readcb接口再触发到用户注册的readcb,weitecb,eventcd那几个接口。
 	event_assign(&bufev->ev_read, bufev->ev_base, fd,
 	    EV_READ|EV_PERSIST|EV_FINALIZE, bufferevent_readcb, bufev);
 	event_assign(&bufev->ev_write, bufev->ev_base, fd,
-	    EV_WRITE|EV_PERSIST|EV_FINALIZE, bufferevent_writecb, bufev);
+	    EV_WRITE|EV_PERSIST|EV_FINALIZE, bufferevent_writecb, bufev);///bufferevent_writecb把output缓存中的内容写到fd中。
 
-	evbuffer_add_cb(bufev->output, bufferevent_socket_outbuf_cb, bufev);
-
-	evbuffer_freeze(bufev->input, 0);
+	evbuffer_add_cb(bufev->output, bufferevent_socket_outbuf_cb, bufev);///给output缓存设置回调，这个回调会在缓存的内用变化是触发。
+	/*
+		也就是说，不能监听可写事件。但我们确实要往fd中写数据，那怎么办？Libevent的做法是：当我们确实要写入数据时，才监听可写事件。
+		也就是说我们调用bufferevent_write写入数据时，Libevent才会把监听可写事件的那个event注册到event_base中。
+		当Libevent把数据都写入到fd的缓冲区后，Libevent又会把这个event从event_base中删除。
+	 */
+	evbuffer_freeze(bufev->input, 0);///冻结缓存
 	evbuffer_freeze(bufev->output, 1);
 
 	return bufev;
@@ -418,7 +422,7 @@ bufferevent_socket_connect(struct bufferevent *bev,
 			goto done;
 		} else
 #endif
-		r = evutil_socket_connect_(&fd, sa, socklen);
+		r = evutil_socket_connect_(&fd, sa, socklen);///连接到sockaddr地址。
 		if (r < 0)
 			goto freesock;
 	}
@@ -433,8 +437,8 @@ bufferevent_socket_connect(struct bufferevent *bev,
 #endif
 	bufferevent_setfd(bev, fd);
 	if (r == 0) {
-		if (! be_socket_enable(bev, EV_WRITE)) {
-			bufev_p->connecting = 1;
+		if (! be_socket_enable(bev, EV_WRITE)) { ///如果r == 0 说明还没连接上，调be_socket_enable接口激活监听ev_write事件，这里赋值connecting==1,标志正在连接，然后在可以回调里面
+			bufev_p->connecting = 1;///正在连接	 ///再出来连接成功事件。连接成功后才enable读写事件的监听。
 			result = 0;
 			goto done;
 		}

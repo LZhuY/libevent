@@ -1652,7 +1652,7 @@ event_process_active_single_queue(struct event_base *base,
 			++count;
 
 
-		base->current_event = evcb;
+		base->current_event = evcb; ///当前要触发的回调结构
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 		base->current_event_waiters = 0;
 #endif
@@ -1762,8 +1762,8 @@ event_process_active(struct event_base *base)
 
 	for (i = 0; i < base->nactivequeues; ++i) {
 		if (TAILQ_FIRST(&base->activequeues[i]) != NULL) {
-			base->event_running_priority = i;
-			activeq = &base->activequeues[i];
+			base->event_running_priority = i; ///当前要触发的激活列表优先级
+			activeq = &base->activequeues[i]; ///根据优先级拿到激活列表
 			if (i < limit_after_prio)
 				c = event_process_active_single_queue(base, activeq,
 				    INT_MAX, NULL);
@@ -1974,8 +1974,8 @@ event_base_loop(struct event_base *base, int flags)
 
 		clear_time_cache(base);
 
-		res = evsel->dispatch(base, tv_p);
-
+		res = evsel->dispatch(base, tv_p); ///IO复用接口，如epoll_wait拿到激活的fd列表，然后根据fd在base->io中拿到对应的evmap_io结构，遍历evmap_io的events，把event的回调结构加到
+										   ///base->activityqueue列表中，根据优先级加入对应的列表中。
 		if (res == -1) {
 			event_debug(("%s: dispatch returned unsuccessfully.",
 				__func__));
@@ -1985,9 +1985,9 @@ event_base_loop(struct event_base *base, int flags)
 
 		update_time_cache(base);
 
-		timeout_process(base);
+		timeout_process(base); ///处理定时事件
 
-		if (N_ACTIVE_CALLBACKS(base)) {
+		if (N_ACTIVE_CALLBACKS(base)) { ///触发激活列表中的事件
 			int n = event_process_active(base);
 			if ((flags & EVLOOP_ONCE)
 			    && N_ACTIVE_CALLBACKS(base) == 0
@@ -2629,9 +2629,9 @@ event_add_nolock_(struct event *ev, const struct timeval *tv,
 		if (ev->ev_events & (EV_READ|EV_WRITE|EV_CLOSED))
 			res = evmap_io_add_(base, ev->ev_fd, ev); ///加IO事件
 		else if (ev->ev_events & EV_SIGNAL)
-			res = evmap_signal_add_(base, (int)ev->ev_fd, ev); ///加信号事件
+			res = evmap_signal_add_(base, (int)ev->ev_fd, ev); ///加信号事件,不需要跟IO事件一样需要libevent去调epoll_wait接口激活，系统信号模块自己触发sighandler接口。
 		if (res != -1) ///如果上面的操作事件添加成功，则把事件加到base列表中。上面的添加只是加到epoll or 系统的信号列表中而已。
-			event_queue_insert_inserted(base, ev); ///这里是base自己持有的ev
+			event_queue_insert_inserted(base, ev); ///这里增加事件数量统计
 		if (res == 1) {
 			/* evmap says we need to notify the main thread. */
 			notify = 1;
@@ -2896,7 +2896,7 @@ event_active(struct event *ev, int res, short ncalls)
 
 
 void
-event_active_nolock_(struct event *ev, int res, short ncalls)
+event_active_nolock_(struct event *ev, int res, short ncalls) ///res感兴趣而且对应的事件触发。
 {
 	struct event_base *base;
 
@@ -2943,7 +2943,7 @@ event_active_nolock_(struct event *ev, int res, short ncalls)
 		ev->ev_pncalls = NULL;
 	}
 
-	event_callback_activate_nolock_(base, event_to_event_callback(ev));
+	event_callback_activate_nolock_(base, event_to_event_callback(ev));///拿到ev的回调结构
 }
 
 void
@@ -3005,7 +3005,7 @@ event_callback_activate_nolock_(struct event_base *base,
 		break;
 	}
 
-	event_queue_insert_active(base, evcb);
+	event_queue_insert_active(base, evcb); ///把回调结构加到激活列表中。
 
 	if (EVBASE_NEED_NOTIFY(base))
 		evthread_notify_base(base);
@@ -3170,16 +3170,16 @@ timeout_process(struct event_base *base)
 
 	gettime(base, &now);
 
-	while ((ev = min_heap_top_(&base->timeheap))) {
+	while ((ev = min_heap_top_(&base->timeheap))) { ///拿最小堆top的对象事件跟当前时间比较，判断是否应该触发。
 		if (evutil_timercmp(&ev->ev_timeout, &now, >))
 			break;
 
 		/* delete this event from the I/O queues */
-		event_del_nolock_(ev, EVENT_DEL_NOBLOCK);
+		event_del_nolock_(ev, EVENT_DEL_NOBLOCK);///从堆中删除
 
 		event_debug(("timeout_process: event: %p, call %p",
 			 ev, ev->ev_callback));
-		event_active_nolock_(ev, EV_TIMEOUT, 1);
+		event_active_nolock_(ev, EV_TIMEOUT, 1); ///到了触发事件，把事件的回调结构加到
 	}
 }
 
@@ -3226,7 +3226,7 @@ event_queue_remove_active(struct event_base *base, struct event_callback *evcb)
 	base->event_count_active--;
 
 	TAILQ_REMOVE(&base->activequeues[evcb->evcb_pri],
-	    evcb, evcb_active_next);
+	    evcb, evcb_active_next); ///已经激活事件列表
 }
 static void
 event_queue_remove_active_later(struct event_base *base, struct event_callback *evcb)
@@ -3261,7 +3261,7 @@ event_queue_remove_timeout(struct event_base *base, struct event *ev)
 		TAILQ_REMOVE(&ctl->events, ev,
 		    ev_timeout_pos.ev_next_with_common_timeout);
 	} else {
-		min_heap_erase_(&base->timeheap, ev);
+		min_heap_erase_(&base->timeheap, ev); ///定时器最小堆
 	}
 }
 
@@ -3354,7 +3354,7 @@ event_queue_insert_inserted(struct event_base *base, struct event *ev)
 }
 
 static void
-event_queue_insert_active(struct event_base *base, struct event_callback *evcb)
+event_queue_insert_active(struct event_base *base, struct event_callback *evcb) ///把回调结构加到激活列表中。
 {
 	EVENT_BASE_ASSERT_LOCKED(base);
 
@@ -3416,7 +3416,7 @@ event_queue_insert_timeout(struct event_base *base, struct event *ev)
 }
 
 static void
-event_queue_make_later_events_active(struct event_base *base)
+event_queue_make_later_events_active(struct event_base *base) ///active_later_queue中的evcb加到activequeues中。
 {
 	struct event_callback *evcb;
 	EVENT_BASE_ASSERT_LOCKED(base);

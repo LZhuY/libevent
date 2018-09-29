@@ -458,8 +458,8 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 	event_changelist_remove_all_(&base->changelist, base);
 
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
-
-	res = epoll_wait(epollop->epfd, events, epollop->nevents, timeout);
+	///int epoll_wait(int epfd, struct epoll_event * events, int maxevents, int timeout);
+	res = epoll_wait(epollop->epfd, events, epollop->nevents, timeout); ///拿到活跃状态的fd列表，放到events数组中
 
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
@@ -475,7 +475,7 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 	event_debug(("%s: epoll_wait reports %d", __func__, res));
 	EVUTIL_ASSERT(res <= epollop->nevents);
 
-	for (i = 0; i < res; i++) {
+	for (i = 0; i < res; i++) { ///遍历epoll_wait中拿到的活跃fd列表，根据fd的事件设置对应标志位。
 		int what = events[i].events;
 		short ev = 0;
 #ifdef USING_TIMERFD
@@ -483,7 +483,7 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 			continue;
 #endif
 
-		if (what & (EPOLLHUP|EPOLLERR)) {
+		if (what & (EPOLLHUP|EPOLLERR)) { ///fd被挂掉或者发生错误
 			ev = EV_READ | EV_WRITE;
 		} else {
 			if (what & EPOLLIN)
@@ -497,10 +497,10 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 		if (!ev)
 			continue;
 
-		evmap_io_active_(base, events[i].data.fd, ev | EV_ET);
+		evmap_io_active_(base, events[i].data.fd, ev | EV_ET); ///设置对应时间激活标志，添加回调结构到激活列表中。
 	}
 
-	if (res == epollop->nevents && epollop->nevents < MAX_NEVENT) {
+	if (res == epollop->nevents && epollop->nevents < MAX_NEVENT) {///调整events数组的大小。
 		/* We used all of the event space this time.  We should
 		   be ready for more events next time. */
 		int new_nevents = epollop->nevents * 2;

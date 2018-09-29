@@ -56,7 +56,7 @@
 	write on a given fd, and the number of each.
   */
 struct evmap_io {
-	struct event_dlist events;
+	struct event_dlist events; /// struct event_dlist { struct events * lh_first };
 	ev_uint16_t nread;
 	ev_uint16_t nwrite;
 	ev_uint16_t nclose;
@@ -162,7 +162,7 @@ void evmap_io_clear_(struct event_io_map *ctx)
 	(x) = (struct type *)((map)->entries[slot])
 /* As GET_SLOT, but construct the entry for 'slot' if it is not present,
    by allocating enough memory for a 'struct type', and initializing the new
-   value by calling the function 'ctor' on it.  Makes the function
+   value by calling the function 'ctor' on it.  Makes the function ///ator是init function
    return -1 on allocation failure.
  */
 #define GET_SIGNAL_SLOT_AND_CTOR(x, map, slot, type, ctor, fdinfo_len)	\
@@ -284,9 +284,9 @@ evmap_io_add_(struct event_base *base, evutil_socket_t fd, struct event *ev)
 	}
 #endif
 	GET_IO_SLOT_AND_CTOR(ctx, io, fd, evmap_io, evmap_io_init,
-						 evsel->fdinfo_len);
+						 evsel->fdinfo_len); ///申请空间并初始化evmap_io结构到slot位置
 
-	nread = ctx->nread;
+	nread = ctx->nread; ///ctx是宏，所以这里已经正确赋值
 	nwrite = ctx->nwrite;
 	nclose = ctx->nclose;
 
@@ -323,12 +323,12 @@ evmap_io_add_(struct event_base *base, evutil_socket_t fd, struct event *ev)
 	}
 
 	if (res) {
-		void *extra = ((char*)ctx) + sizeof(struct evmap_io);
+		void *extra = ((char*)ctx) + sizeof(struct evmap_io); ///额外部分
 		/* XXX(niels): we cannot mix edge-triggered and
 		 * level-triggered, we should probably assert on
 		 * this. */
 		if (evsel->add(base, ev->ev_fd,
-			old, (ev->ev_events & EV_ET) | res, extra) == -1)
+			old, (ev->ev_events & EV_ET) | res, extra) == -1) ///系统IO复用接口的add操作，如epoll的epoll_add。
 			return (-1);
 		retval = 1;
 	}
@@ -336,7 +336,7 @@ evmap_io_add_(struct event_base *base, evutil_socket_t fd, struct event *ev)
 	ctx->nread = (ev_uint16_t) nread;
 	ctx->nwrite = (ev_uint16_t) nwrite;
 	ctx->nclose = (ev_uint16_t) nclose;
-	LIST_INSERT_HEAD(&ctx->events, ev, ev_io_next);
+	LIST_INSERT_HEAD(&ctx->events, ev, ev_io_next); ///一个fd对应base->io[fd]中的一个evmap_io, evmap_io->events是一个dlist列表，里面放event对象。就是一个fd对应一个event双向列表。
 
 	return (retval);
 }
@@ -419,12 +419,12 @@ evmap_io_active_(struct event_base *base, evutil_socket_t fd, short events)
 	if (fd < 0 || fd >= io->nentries)
 		return;
 #endif
-	GET_IO_SLOT(ctx, io, fd, evmap_io);
+	GET_IO_SLOT(ctx, io, fd, evmap_io); ///根据fd拿到base->io中的evmap_io结构
 
 	if (NULL == ctx)
 		return;
-	LIST_FOREACH(ev, &ctx->events, ev_io_next) {
-		if (ev->ev_events & events)
+	LIST_FOREACH(ev, &ctx->events, ev_io_next) { ///遍历evmap_io中的事件列表
+		if (ev->ev_events & events) ///如果有感兴趣的事件触发
 			event_active_nolock_(ev, ev->ev_events & events, 1);
 	}
 }
@@ -459,7 +459,7 @@ evmap_signal_add_(struct event_base *base, int sig, struct event *ev)
 			return (-1);
 	}
 
-	LIST_INSERT_HEAD(&ctx->events, ev, ev_signal_next);
+	LIST_INSERT_HEAD(&ctx->events, ev, ev_signal_next); ///跟io事件一样的结构，是指hashmap换成了sigmap
 
 	return (1);
 }

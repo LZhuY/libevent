@@ -64,7 +64,7 @@ static void bufferevent_cancel_all_(struct bufferevent *bev);
 static void bufferevent_finalize_cb_(struct event_callback *evcb, void *arg_);
 
 void
-bufferevent_suspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags what) ///先暂停读事件触发，inbuffer中的内容已经到高水位，先暂停从fd中读。
+bufferevent_suspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags what) ///先暂停读事件触发，inbuffer中的内容已经到高水位，先暂停从fd中读。其实就是直接删掉ev_read事件。
 {
 	struct bufferevent_private *bufev_private =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
@@ -117,7 +117,7 @@ bufferevent_unsuspend_write_(struct bufferevent *bufev, bufferevent_suspend_flag
 static void
 bufferevent_inbuf_wm_cb(struct evbuffer *buf,
     const struct evbuffer_cb_info *cbinfo,
-    void *arg) ///读高低水位回调，被注册到evbuffer的回调函数中。
+    void *arg) ///读高低水位回调，被注册到evbuffer的回调函数中。根据evbuffer中的内用，决定添加或者暂时删除ev_read/ev_write事件。
 {
 	struct bufferevent *bufev = arg;
 	size_t size;
@@ -457,7 +457,7 @@ bufferevent_read_buffer(struct bufferevent *bufev, struct evbuffer *buf)
 }
 
 int
-bufferevent_enable(struct bufferevent *bufev, short event)
+bufferevent_enable(struct bufferevent *bufev, short event) ///bufferevent_sock中设置好ev_read\ev_write事件的回调之后，这里才吧event add 到event_base中。
 {
 	struct bufferevent_private *bufev_private =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
@@ -472,8 +472,8 @@ bufferevent_enable(struct bufferevent *bufev, short event)
 
 	bufev->enabled |= event;
 
-	if (impl_events && bufev->be_ops->enable(bufev, impl_events) < 0)
-		r = -1;
+	if (impl_events && bufev->be_ops->enable(bufev, impl_events) < 0) ///be_ops这里是保存了bufferevent的操作接口,bufferevent_sock的操作接口定义在bufferevent_sock
+		r = -1;														  ///这个enable接口把两个ev_read/ev_write add 到base中。
 
 	bufferevent_decref_and_unlock_(bufev);
 	return r;
@@ -548,7 +548,7 @@ bufferevent_disable_hard_(struct bufferevent *bufev, short event)
 }
 
 int
-bufferevent_disable(struct bufferevent *bufev, short event)
+bufferevent_disable(struct bufferevent *bufev, short event)///从base->io中删除ev_read/ev_write
 {
 	int r = 0;
 

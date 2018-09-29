@@ -210,7 +210,7 @@ struct event_base {
 	 * backend. */
 	const struct eventop *evsel;
 	/** Pointer to backend-specific data. */
-	void *evbase;
+	void *evbase; ///指向IO复用相关的结构，比如epollop结构，有epollop相关的字段
 
 	/** List of changes to tell backend about at next dispatch.  Only used
 	 * by the O(1) backends. */
