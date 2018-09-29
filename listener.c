@@ -73,10 +73,10 @@ struct evconnlistener_ops {
 };
 
 struct evconnlistener {
-	const struct evconnlistener_ops *ops;
+	const struct evconnlistener_ops *ops;///操作接口合集，如enable、disenable等。
 	void *lock;
-	evconnlistener_cb cb;
-	evconnlistener_errorcb errorcb;
+	evconnlistener_cb cb; ///连接回调
+	evconnlistener_errorcb errorcb; ///错误回调
 	void *user_data;
 	unsigned flags;
 	short refcnt;
@@ -155,7 +155,7 @@ static void listener_read_cb(evutil_socket_t, short, void *);
 struct evconnlistener *
 evconnlistener_new(struct event_base *base,
     evconnlistener_cb cb, void *ptr, unsigned flags, int backlog,
-    evutil_socket_t fd)
+    evutil_socket_t fd) ///创建evconnlistener_event对象，设置监听事件到base等。
 {
 	struct evconnlistener_event *lev;
 
@@ -198,10 +198,10 @@ evconnlistener_new(struct event_base *base,
 	}
 
 	event_assign(&lev->listener, base, fd, EV_READ|EV_PERSIST,
-	    listener_read_cb, lev);
+	    listener_read_cb, lev);///给lev->listenner赋值，回调函数、fd等。
 
 	if (!(flags & LEV_OPT_DISABLED))
-	    evconnlistener_enable(&lev->base);
+	    evconnlistener_enable(&lev->base); ///evconnlistener_event->listener事件注册到base中。
 
 	return &lev->base;
 }
@@ -209,8 +209,8 @@ evconnlistener_new(struct event_base *base,
 struct evconnlistener *
 evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
     void *ptr, unsigned flags, int backlog, const struct sockaddr *sa,
-    int socklen)
-{
+    int socklen) ///创建监听结构evconnlistener,注册监听事件evconnlistener_event->listener到base。
+{				 ///事件回调先触发到listener_read_cb，accept新的fd之后，fd当参数之一触发用户注册的evconnlistener_cd接口。
 	struct evconnlistener *listener;
 	evutil_socket_t fd;
 	int on = 1;
@@ -284,7 +284,7 @@ event_listener_destroy(struct evconnlistener *lev)
 }
 
 int
-evconnlistener_enable(struct evconnlistener *lev)
+evconnlistener_enable(struct evconnlistener *lev) ///注册监听事件到base
 {
 	int r;
 	LOCK(lev);
@@ -298,7 +298,7 @@ evconnlistener_enable(struct evconnlistener *lev)
 }
 
 int
-evconnlistener_disable(struct evconnlistener *lev)
+evconnlistener_disable(struct evconnlistener *lev) ///从base删除监听对象
 {
 	int r;
 	LOCK(lev);
@@ -385,8 +385,8 @@ evconnlistener_set_error_cb(struct evconnlistener *lev,
 }
 
 static void
-listener_read_cb(evutil_socket_t fd, short what, void *p)
-{
+listener_read_cb(evutil_socket_t fd, short what, void *p) ///evconnlistener_event->listener的可读回调事件，先触发到这里在触发到用户注册测connet_cb
+{														  ///可读事件触发后，调系统的accept接口接收新的连接fd之后，把新fd当参数触发用户注册的连接回调。
 	struct evconnlistener *lev = p;
 	int err;
 	evconnlistener_cb cb;
@@ -396,7 +396,7 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 	while (1) {
 		struct sockaddr_storage ss;
 		ev_socklen_t socklen = sizeof(ss);
-		evutil_socket_t new_fd = evutil_accept4_(fd, (struct sockaddr*)&ss, &socklen, lev->accept4_flags);
+		evutil_socket_t new_fd = evutil_accept4_(fd, (struct sockaddr*)&ss, &socklen, lev->accept4_flags);///accept新连接。
 		if (new_fd < 0)
 			break;
 		if (socklen == 0) {
@@ -416,7 +416,7 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 		user_data = lev->user_data;
 		UNLOCK(lev);
 		cb(lev, new_fd, (struct sockaddr*)&ss, (int)socklen,
-		    user_data);
+		    user_data); ///触发连接回调。
 		LOCK(lev);
 		if (lev->refcnt == 1) {
 			int freed = listener_decref_and_unlock(lev);
@@ -435,7 +435,7 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 		UNLOCK(lev);
 		return;
 	}
-	if (lev->errorcb != NULL) {
+	if (lev->errorcb != NULL) {///出错回调。
 		++lev->refcnt;
 		errorcb = lev->errorcb;
 		user_data = lev->user_data;
