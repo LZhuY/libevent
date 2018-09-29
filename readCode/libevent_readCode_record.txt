@@ -36,3 +36,18 @@ res = evsel->dispatch(base, tv_p); ///IO复用接口，如epoll_wait拿到激活
 								   ///遍历evmap_io的events，把event的回调结构加到base->activityqueue列表中，根据优先级加入对应的列表中。
 timeout_process(base); ///处理定时事件，从最小堆顶拿出事件，如果超时则从堆中删除，然后加到activityqueue列表中。
 int n = event_process_active(base); ///前面的操作把激活状态的事件的回调结构加到activequeues列表之后，这里根据优先级顺序遍历列表，逐个触发回调。
+
+4、evconnlistener
+struct evconnlistener* evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb, void *ptr, unsigned flags, int backlog, const struct sockaddr *sa,int socklen) 
+///创建监听结构evconnlistener,注册监听事件evconnlistener_event->listener到base。
+///事件回调先触发到listener_read_cb，accept新的fd之后，fd当参数之一触发用户注册的evconnlistener_cd接口。
+
+5、bufferevent_sock
+bufferevent_sock创建bufferevent,并与把bufferevent与fd绑定。
+两个evbuffer,分别保存进出两个方向的数据。
+三个event,分别注册read、write、event事件。
+read、write事件先触发到 bufferevent_sock文件中定义的bufferevent_readcb、bufferevent_writecb接口，这两个接口再触发到用户通过bufferevent_setcb接口注册的回调接口。
+bufferevent的高低水位是通过evbuffer的字节变化回调函数实现的。高低水位变化可能会暂时从base中删除 read、write事件。
+write事件比较特殊一点，因为正常情况下write事件会一直触发。所以写完之后会先把写事件从base中删除，下次bufferevent_write接口被调用的时候再重新注册。
+写事件会先触发到bufferevent_sock中定义的bufferevent_writecb接口，因为写需要在连接connet成功之后，所以这接口里会检查fd连接的状态，如果没有连接成功则
+在下次写事件超时是再检查一次。
