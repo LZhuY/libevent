@@ -1,0 +1,38 @@
+1、event_base struct
+struct event_base {
+	const struct eventop *evsel; //IO复用操作接口结构集合，如epoll的epoll_add、epoll_create等接口
+	void *evbase; ///指向IO复用相关的结构，比如epollop结构，有epollop相关的字段。events等用于存放epoll_wait接口返回的活跃event
+
+	const struct eventop *evsigsel; //信号量相关操作
+	/** Data to implement the common signal handler code. */
+	struct evsig_info sig;
+
+	int event_running_priority;//当前正在触发的激活列表优先级。
+
+	struct evcallback_list *activequeues; //An array of nactivequeues queues for active event_callback,激活回调结构数组，每个event结构有自己的回调结构，保存回调接口、参数等。
+
+	/** Mapping from file descriptors to enabled (added) events */
+	struct event_io_map io; //hash列表，IO事件是fd为下标，每个下标放一个evmap_io结构，结构下有events数组用于保存这个fd的事件列表，如读事件、写事件等。
+
+	/** Mapping from signal numbers to enabled (added) events. */
+	struct event_signal_map sigmap;//hash列表，信号事件。信号触发直接走系统那套，不在libevent里管理触发。
+
+	/** Priority queue of events with timeouts. */
+	struct min_heap timeheap;//定时器最小堆。
+
+	/** The event whose callback is executing right now */
+	struct event_callback *current_event; //当前正要触发的回调结构。
+
+	/** List of event_onces that have not yet fired. */
+	LIST_HEAD(once_event_list, event_once) once_events;
+};
+
+2、event_add(struct event *ev, const struct timeval *tv)
+根据ev的类型分别加到base->io或base->sigmap hash列表中。
+
+3、event_base_loop
+
+res = evsel->dispatch(base, tv_p); ///IO复用接口，如epoll_wait拿到激活的fd列表，然后根据fd在base->io中拿到对应的evmap_io结构，
+								   ///遍历evmap_io的events，把event的回调结构加到base->activityqueue列表中，根据优先级加入对应的列表中。
+timeout_process(base); ///处理定时事件，从最小堆顶拿出事件，如果超时则从堆中删除，然后加到activityqueue列表中。
+int n = event_process_active(base); ///前面的操作把激活状态的事件的回调结构加到activequeues列表之后，这里根据优先级顺序遍历列表，逐个触发回调。
