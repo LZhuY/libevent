@@ -388,7 +388,7 @@ static void event_debug_assert_not_added_(const struct event *ev) { (void)ev; }
 
 /* How often (in seconds) do we check for changes in wall clock time relative
  * to monotonic time?  Set this to -1 for 'never.' */
-#define CLOCK_SYNC_INTERVAL 5
+#define CLOCK_SYNC_INTERVAL 5 ///多少秒检查一次和monotonic时间的差别。
 
 /** Set 'tp' to the current time according to 'base'.  We must hold the lock
  * on 'base'.  If there is a cached time, return it.  Otherwise, use
@@ -405,7 +405,7 @@ gettime(struct event_base *base, struct timeval *tp)
 		return (0);
 	}
 
-	if (evutil_gettime_monotonic_(&base->monotonic_timer, tp) == -1) {
+	if (evutil_gettime_monotonic_(&base->monotonic_timer, tp) == -1) { ///monotonic时间，系统从启动开始算的事件，用户不能改的时间。
 		return -1;
 	}
 
@@ -1972,7 +1972,7 @@ event_base_loop(struct event_base *base, int flags)
 
 		event_queue_make_later_events_active(base);
 
-		clear_time_cache(base);
+		clear_time_cache(base); ///清空cache_time，每次更新cache_time后，在一个循环内优先，下次要重新update之后才能用。
 
 		res = evsel->dispatch(base, tv_p); ///IO复用接口，如epoll_wait拿到激活的fd列表，然后根据fd在base->io中拿到对应的evmap_io结构，遍历evmap_io的events，把event的回调结构加到
 										   ///base->activityqueue列表中，根据优先级加入对应的列表中。
@@ -1983,9 +1983,9 @@ event_base_loop(struct event_base *base, int flags)
 			goto done;
 		}
 
-		update_time_cache(base);
+		update_time_cache(base); ///更新cache_time,每更新一次在一个while循环中有效，下次要重置掉后再次更新。
 
-		timeout_process(base); ///处理定时事件
+		timeout_process(base); ///处理定时事件，event_add的时候如果有tv参数，则如果事件没有在规定事件内触发，则可能会在超时这里触发。
 
 		if (N_ACTIVE_CALLBACKS(base)) { ///触发激活列表中的事件
 			int n = event_process_active(base);
@@ -2660,7 +2660,7 @@ event_add_nolock_(struct event *ev, const struct timeval *tv,
 		if (ev->ev_closure == EV_CLOSURE_EVENT_PERSIST && !tv_is_absolute)
 			ev->ev_io_timeout = *tv;
 
-#ifndef USE_REINSERT_TIMEOUT
+#ifndef USE_REINSERT_TIMEOUT ///每次都重新插入？
 		if (ev->ev_flags & EVLIST_TIMEOUT) {
 			event_queue_remove_timeout(base, ev);
 		}
@@ -2943,7 +2943,7 @@ event_active_nolock_(struct event *ev, int res, short ncalls) ///res感兴趣而
 		ev->ev_pncalls = NULL;
 	}
 
-	event_callback_activate_nolock_(base, event_to_event_callback(ev));///拿到ev的回调结构
+	event_callback_activate_nolock_(base, event_to_event_callback(ev));///拿到ev的回调结构，加入到激活列表。
 }
 
 void
@@ -3171,7 +3171,7 @@ timeout_process(struct event_base *base)
 	gettime(base, &now);
 
 	while ((ev = min_heap_top_(&base->timeheap))) { ///拿最小堆top的对象事件跟当前时间比较，判断是否应该触发。
-		if (evutil_timercmp(&ev->ev_timeout, &now, >))
+		if (evutil_timercmp(&ev->ev_timeout, &now, >))///如果top元素的触发时间大于当前时间，则直接break掉。
 			break;
 
 		/* delete this event from the I/O queues */

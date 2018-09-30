@@ -191,12 +191,12 @@ adjust_monotonic_time(struct evutil_monotonic_timer *base,
 {
 	evutil_timeradd(tv, &base->adjust_monotonic_clock, tv);
 
-	if (evutil_timercmp(tv, &base->last_time, <)) {
+	if (evutil_timercmp(tv, &base->last_time, <)) {///时间被向后调过。
 		/* Guess it wasn't monotonic after all. */
 		struct timeval adjust;
 		evutil_timersub(&base->last_time, tv, &adjust);
 		evutil_timeradd(&adjust, &base->adjust_monotonic_clock,
-		    &base->adjust_monotonic_clock);
+		    &base->adjust_monotonic_clock); ///base->adjust_monotonic_clock中保存被调的时间大小。下次会更新到tv中，保证时间被调后tv能保持不变。
 		*tv = base->last_time;
 	}
 	base->last_time = *tv;
@@ -274,7 +274,7 @@ evutil_configure_monotonic_time_(struct evutil_monotonic_timer *base,
 	const int fallback = flags & EV_MONOT_FALLBACK;
 	struct timespec	ts;
 
-#ifdef CLOCK_MONOTONIC_COARSE
+#ifdef CLOCK_MONOTONIC_COARSE ///当前系统是否支持monotonic时间
 	if (CLOCK_MONOTONIC_COARSE < 0) {
 		/* Technically speaking, nothing keeps CLOCK_* from being
 		 * negative (as far as I know). This check and the one below
@@ -302,13 +302,22 @@ evutil_configure_monotonic_time_(struct evutil_monotonic_timer *base,
 	return 0;
 }
 
+/*
+微秒 百万分之一
+纳秒 十亿分之一
+time()精度秒
+gettimeofday 精度微秒
+clock_gettime   精度纳秒 
+clock_gettime monotonic 拿到开机到现在的 
+ */
+
 int
 evutil_gettime_monotonic_(struct evutil_monotonic_timer *base,
-    struct timeval *tp)
+    struct timeval *tp) ///拿系统时间接口
 {
 	struct timespec ts;
 
-	if (base->monotonic_clock < 0) {
+	if (base->monotonic_clock < 0) { ///当前系统不支持monotonic时间
 		if (evutil_gettimeofday(tp, NULL) < 0)
 			return -1;
 		adjust_monotonic_time(base, tp);
