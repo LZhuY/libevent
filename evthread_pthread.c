@@ -161,7 +161,7 @@ evthread_posix_cond_wait(void *cond_, void *lock_, const struct timeval *tv)
 }
 
 int
-evthread_use_pthreads(void)
+evthread_use_pthreads(void) ///使用系统默认接口。
 {
 	struct evthread_lock_callbacks cbs = {
 		EVTHREAD_LOCK_API_VERSION,

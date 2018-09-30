@@ -50,7 +50,7 @@ struct event_base;
 /* Global function pointers to lock-related functions. NULL if locking isn't
    enabled. */
 EVENT2_EXPORT_SYMBOL
-extern struct evthread_lock_callbacks evthread_lock_fns_;
+extern struct evthread_lock_callbacks evthread_lock_fns_; ///声明，已经在evthread中定义过。
 EVENT2_EXPORT_SYMBOL
 extern struct evthread_condition_callbacks evthread_cond_fns_;
 extern unsigned long (*evthread_id_fn_)(void);

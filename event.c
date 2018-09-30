@@ -707,7 +707,7 @@ event_base_new_with_config(const struct event_config *cfg)
 	if (EVTHREAD_LOCKING_ENABLED() &&
 	    (!cfg || !(cfg->flags & EVENT_BASE_FLAG_NOLOCK))) {
 		int r;
-		EVTHREAD_ALLOC_LOCK(base->th_base_lock, 0);
+		EVTHREAD_ALLOC_LOCK(base->th_base_lock, 0); ///创建base初始化锁变量
 		EVTHREAD_ALLOC_COND(base->current_event_cond);
 		r = evthread_make_base_notifiable(base);
 		if (r<0) {
@@ -1714,7 +1714,7 @@ event_process_active_single_queue(struct event_base *base,
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 		if (base->current_event_waiters) {
 			base->current_event_waiters = 0;
-			EVTHREAD_COND_BROADCAST(base->current_event_cond);
+			EVTHREAD_COND_BROADCAST(base->current_event_cond); ///current_event_waiters等待的线程数量，如果有线程在等，全部唤醒。
 		}
 #endif
 
@@ -1914,7 +1914,7 @@ event_base_loop(struct event_base *base, int flags)
 
 	/* Grab the lock.  We will release it inside evsel.dispatch, and again
 	 * as we invoke user callbacks. */
-	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock); ///base加锁
 
 	if (base->running_loop) {
 		event_warnx("%s: reentrant invocation.  Only one event_base_loop"
@@ -2870,7 +2870,7 @@ event_del_nolock_(struct event *ev, int blocking)
 	    !EVBASE_IN_THREAD(base) &&
 	    (blocking == EVENT_DEL_BLOCK || !(ev->ev_events & EV_FINALIZE))) {
 		++base->current_event_waiters;
-		EVTHREAD_COND_WAIT(base->current_event_cond, base->th_base_lock);
+		EVTHREAD_COND_WAIT(base->current_event_cond, base->th_base_lock); ///释放锁并等待主进程唤醒。
 	}
 #endif
 

@@ -128,7 +128,7 @@ evsig_set_base_(struct event_base *base)
 
 /* Callback for when the signal handler write a byte to our signaling socket */
 static void
-evsig_cb(evutil_socket_t fd, short what, void *arg)
+evsig_cb(evutil_socket_t fd, short what, void *arg) ///event回调函数，所有信号触发后会想pair sock中写，然后会触发事件的读。最后触发这读回调函数。
 {
 	static char signals[1024];
 	ev_ssize_t n;
@@ -165,7 +165,7 @@ evsig_cb(evutil_socket_t fd, short what, void *arg)
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 	for (i = 0; i < NSIG; ++i) {
 		if (ncaught[i])
-			evmap_signal_active_(base, i, ncaught[i]);
+			evmap_signal_active_(base, i, ncaught[i]); ///激活对应的信号回调
 	}
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }

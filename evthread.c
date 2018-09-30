@@ -74,7 +74,7 @@ evthread_set_id_callback(unsigned long (*id_fn)(void))
 	evthread_id_fn_ = id_fn;
 }
 
-struct evthread_lock_callbacks *evthread_get_lock_callbacks()
+struct evthread_lock_callbacks *evthread_get_lock_callbacks() ///debug模式还是正式模式。
 {
 	return evthread_lock_debugging_enabled_
 	    ? &original_lock_fns_ : &evthread_lock_fns_;
@@ -90,7 +90,7 @@ void evthreadimpl_disable_lock_debugging_(void)
 }
 
 int
-evthread_set_lock_callbacks(const struct evthread_lock_callbacks *cbs)
+evthread_set_lock_callbacks(const struct evthread_lock_callbacks *cbs) ///设置libevent锁操作接口，新的操作接口在cbs中。
 {
 	struct evthread_lock_callbacks *target = evthread_get_lock_callbacks();
 
