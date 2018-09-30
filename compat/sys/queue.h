@@ -48,28 +48,28 @@
  * macro for this purpose for optimum efficiency. A singly-linked list may
  * only be traversed in the forward direction.  Singly-linked lists are ideal
  * for applications with large datasets and few or no removals or for
- * implementing a LIFO queue.
+ * implementing a LIFO queue. ///就是一个栈。
  *
  * A list is headed by a single forward pointer (or an array of forward
  * pointers for a hash table header). The elements are doubly linked
  * so that an arbitrary element can be removed without a need to
  * traverse the list. New elements can be added to the list before
  * or after an existing element or at the head of the list. A list
- * may only be traversed in the forward direction.
+ * may only be traversed in the forward direction. ///双向列表。
  *
  * A simple queue is headed by a pair of pointers, one the head of the
  * list and the other to the tail of the list. The elements are singly
  * linked to save space, so elements can only be removed from the
  * head of the list. New elements can be added to the list before or after
  * an existing element, at the head of the list, or at the end of the
- * list. A simple queue may only be traversed in the forward direction.
+ * list. A simple queue may only be traversed in the forward direction. ///单向列表。
  *
  * A tail queue is headed by a pair of pointers, one to the head of the
  * list and the other to the tail of the list. The elements are doubly
  * linked so that an arbitrary element can be removed without a need to
  * traverse the list. New elements can be added to the list before or
  * after an existing element, at the head of the list, or at the end of
- * the list. A tail queue may be traversed in either direction.
+ * the list. A tail queue may be traversed in either direction. ///double link双端都有指针。
  *
  * A circle queue is headed by a pair of pointers, one to the head of the
  * list and the other to the tail of the list. The elements are doubly
