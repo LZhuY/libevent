@@ -374,7 +374,7 @@ evsig_del(struct event_base *base, evutil_socket_t evsignal, short old, short ev
 }
 
 static void __cdecl
-evsig_handler(int sig)
+evsig_handler(int sig) ///信号触发后，回调到这里。网pair sock里面send字节触发另一端的IO事件。
 {
 	int save_errno = errno;
 #ifdef _WIN32
@@ -396,7 +396,7 @@ evsig_handler(int sig)
 	/* Wake up our notification mechanism */
 	msg = sig;
 #ifdef _WIN32
-	send(evsig_base_fd, (char*)&msg, 1, 0);
+	send(evsig_base_fd, (char*)&msg, 1, 0); ///拿到地址，从这个地址里拿一个字节写到sock
 #else
 	{
 		int r = write(evsig_base_fd, (char*)&msg, 1);
