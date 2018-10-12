@@ -2579,7 +2579,7 @@ event_add_nolock_(struct event *ev, const struct timeval *tv,
 {
 	struct event_base *base = ev->ev_base;
 	int res = 0;
-	int notify = 0;
+	int notify = 0;//是否需要唤醒主线程，主线程可能在一些系统调用中已经挂起。加入新事件后需要主线程监听新事件。
 
 	EVENT_BASE_ASSERT_LOCKED(base);
 	event_debug_assert_is_setup_(ev);
@@ -2634,7 +2634,7 @@ event_add_nolock_(struct event *ev, const struct timeval *tv,
 			event_queue_insert_inserted(base, ev); ///这里增加事件数量统计
 		if (res == 1) {
 			/* evmap says we need to notify the main thread. */
-			notify = 1;
+			notify = 1; //事件添加成功，需要唤醒主线程。
 			res = 0;
 		}
 	}
@@ -2692,7 +2692,7 @@ event_add_nolock_(struct event *ev, const struct timeval *tv,
 		old_timeout_idx = COMMON_TIMEOUT_IDX(&ev->ev_timeout);
 #endif
 
-		if (tv_is_absolute) {
+		if (tv_is_absolute) {//添加绝对超时时间事件。
 			ev->ev_timeout = *tv;
 		} else if (common_timeout) {
 			struct timeval tmp = *tv;
@@ -2737,7 +2737,7 @@ event_add_nolock_(struct event *ev, const struct timeval *tv,
 	}
 
 	/* if we are not in the right thread, we need to wake up the loop */
-	if (res != -1 && notify && EVBASE_NEED_NOTIFY(base))
+	if (res != -1 && notify && EVBASE_NEED_NOTIFY(base)) //唤醒主线程，只是简单往pair sock中写一个字节。如果主线程在epoll等接口中挂起，会被唤醒。
 		evthread_notify_base(base);
 
 	event_debug_note_add_(ev);
