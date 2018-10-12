@@ -1984,7 +1984,7 @@ event_base_loop(struct event_base *base, int flags)
 		}
 
 		update_time_cache(base); ///更新cache_time,每更新一次在一个while循环中有效，下次要重置掉后再次更新。
-
+					///超时处理在IO事件和signal事件之后，并且如果已经到触发时间会重复检查事件是否已经在触发列表中，避免重复触发。
 		timeout_process(base); ///处理定时事件，event_add的时候如果有tv参数，则如果事件没有在规定事件内触发，则可能会在超时这里触发。
 
 		if (N_ACTIVE_CALLBACKS(base)) { ///触发激活列表中的事件
